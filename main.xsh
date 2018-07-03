@@ -35,13 +35,13 @@ pB = 0.3
 
 # probability of ignite
 # pF = 0.03
-pF = -1
+pF = 0.00001
 
 # grid dimension
-dim = 150
+dim = 500
 
 # number of iterations
-nt = 1000
+nt = 200
 
 # number of threads to run
 nThreads = 4
@@ -98,7 +98,6 @@ with pymp.Parallel(nThreads) as p:
     z = 0
     # time iteration
     for it in range(nt):
-        grid[z][1][int((dim+2)/2)] = state.BURNING
         # spatial iteraions
         for x in p.xrange(1, 1+dim):
             for y in range(1, 1+dim):
