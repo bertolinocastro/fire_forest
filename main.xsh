@@ -3,13 +3,25 @@
 
 import numpy as np
 import pymp
-from enum import Enum
+import seaborn as sns
+import matplotlib.pyplot as plt
+import matplotlib.animation as anim
+import matplotlib.colors as matcolors
+import matplotlib.patches as mpt
+from collections import namedtuple
+
+from sys import exit
+
+# declaring a c-like stucture to hold the states
+Enum = namedtuple('state', 'EMPASH SUSCEPTIBLE BURNING')
 
 # defining enumeration just for code reading improvement
-class state(Enum):
-    EMPASH = 0 # empty site or ashes of trees
-    SUSCEPTIBLE = 1 # healthy tree
+state = Enum(
+    EMPASH = 0, # empty site or ashes of trees
+    SUSCEPTIBLE = 1, # healthy tree
     BURNING = 2 # tree being burned
+)
+
 
 # defining a function to check wether the actual tree has burning friends
 def hasCloserFire(grid,pos):
@@ -26,23 +38,69 @@ pB = 0.3
 pF = 0.3
 
 # grid dimension
-dim = 20
+dim = 10
+
+# number of iterations
+nt = 10
+
+# number of threads to run
+nThreads = 2
 
 # grid definined in parallel mode
 # grid using the fixed model for boundary conditions
 # dt = np.dtype('O')
-# grid = pymp.shared.array(shape=(2, dim+2, dim+2), dtype=dt)
-grid = pymp.shared.list()
+grid = pymp.shared.array(shape=(2, dim+2, dim+2), dtype='uint8')
+# grid = pymp.shared.list()
 # creating dimensions and initializing grid values
-grid.append([]); grid.append([])
-grid[0] = [[0 for x in range(dim+2)] for y in range(dim+2)]
-grid[1] = [[0 for x in range(dim+2)] for y in range(dim+2)]
+# grid.append([]); grid.append([])
+# grid[0] = [[0 for x in range(dim+2)] for y in range(dim+2)]
+# grid[1] = [[0 for x in range(dim+2)] for y in range(dim+2)]
 
-with pymp.Parallel(4) as p:
+
+# defining a default figure instance
+fig = plt.figure(0)
+
+# defining a color mapper (it will be mapped as a ratio with the high and low values inside the matrix)
+colors = [
+    '#e6e9ef', # mapping 0 to the gray color
+    '#33b737', # mapping 1 to the green color
+    '#e03131'  # mapping 2 to the red color
+]
+
+# defining a color mapper
+cm = matcolors.ListedColormap(colors)
+
+# defining a handle to the Patch instances for each legend element
+handle = [mpt.Patch(color=colors[i]) for i in range(len(colors))]
+
+# naming each legend element
+legLabels = [
+    'Empty or Ashes',
+    'Healthy tree',
+    'Burning tree'
+]
+
+# setting a informative title
+plt.title('Forest fire model\ngrid dim %dx%d, pB=%.2f, pF=%.2f, nt=%d' %
+    (dim,dim,pB,pF,nt))
+
+# Put a legend below current axis
+plt.legend(handles=handle, labels=legLabels, loc='upper center',
+    bbox_to_anchor=(0.5, 0), fancybox=True, ncol=3)
+
+# removing the axes labels and ticks
+plt.gca().axis('off')
+
+# defining variables to get the image output
+images = []
+
+with pymp.Parallel(nThreads) as p:
+    print("numthr", p.num_threads)
+    # fig = plt.figure(p.thread_num)
     # variable to hold the actual plan in computation
     z = 0
     # time iteration
-    for it in range(100):
+    for it in range(nt):
         # spatial iteraions
         for x in p.xrange(1, 1+dim):
             for y in range(1, 1+dim):
@@ -62,3 +120,16 @@ with pymp.Parallel(4) as p:
 
         # switching to next plan
         z = 1 - z
+
+        if p.thread_num == 0:
+            print("thread: %d -> it: %d" % (p.thread_num, it))
+            # plotting the actual state of the grid as a heatmap plot
+            img = plt.imshow(grid[z], cmap=cm, animated=True)
+            # setting the iteration to be the title of the graph
+
+            images.append([img])
+
+# creating the animation with all states recorded and saving them as a gif file
+an = anim.ArtistAnimation(fig, images)
+an.save('drossel-schwabl_forest-fire-model_%d_%dx%d_pb%.2f_pf%.2f.gif' %
+    (nt, dim, dim, pB, pF), writer='imagemagick', fps=1, dpi=240)
