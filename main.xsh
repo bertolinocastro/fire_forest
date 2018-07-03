@@ -22,7 +22,6 @@ state = Enum(
     BURNING = 2 # tree being burned
 )
 
-
 # defining a function to check wether the actual tree has burning friends
 def hasCloserFire(grid,pos):
     x, y, z = pos
@@ -35,27 +34,25 @@ def hasCloserFire(grid,pos):
 pB = 0.3
 
 # probability of ignite
-pF = 0.3
+pF = 0.03
 
 # grid dimension
-dim = 10
+dim = 150
 
 # number of iterations
-nt = 10
+nt = 20
 
 # number of threads to run
-nThreads = 2
+nThreads = 4
 
 # grid definined in parallel mode
 # grid using the fixed model for boundary conditions
-# dt = np.dtype('O')
 grid = pymp.shared.array(shape=(2, dim+2, dim+2), dtype='uint8')
-# grid = pymp.shared.list()
-# creating dimensions and initializing grid values
-# grid.append([]); grid.append([])
-# grid[0] = [[0 for x in range(dim+2)] for y in range(dim+2)]
-# grid[1] = [[0 for x in range(dim+2)] for y in range(dim+2)]
 
+# setting the top left corner site to burning state in order to cheat the colormap function of matplotlib
+# at the first step, it's setting all the healthy trees to Red (undesired behaviour)
+grid[0][0][0] = state.BURNING
+grid[1][0][0] = state.BURNING
 
 # defining a default figure instance
 fig = plt.figure(0)
@@ -95,7 +92,6 @@ plt.gca().axis('off')
 images = []
 
 with pymp.Parallel(nThreads) as p:
-    print("numthr", p.num_threads)
     # fig = plt.figure(p.thread_num)
     # variable to hold the actual plan in computation
     z = 0
@@ -122,14 +118,15 @@ with pymp.Parallel(nThreads) as p:
         z = 1 - z
 
         if p.thread_num == 0:
-            print("thread: %d -> it: %d" % (p.thread_num, it))
             # plotting the actual state of the grid as a heatmap plot
             img = plt.imshow(grid[z], cmap=cm, animated=True)
-            # setting the iteration to be the title of the graph
-
             images.append([img])
 
+# defining the fps value based on number of iterations (the gif must finish in 10 sec)
+# fps = nt/10
+interval = 10000/nt
+
 # creating the animation with all states recorded and saving them as a gif file
-an = anim.ArtistAnimation(fig, images)
+an = anim.ArtistAnimation(fig, images, interval)
 an.save('drossel-schwabl_forest-fire-model_%d_%dx%d_pb%.2f_pf%.2f.gif' %
-    (nt, dim, dim, pB, pF), writer='imagemagick', fps=1, dpi=240)
+    (nt, dim, dim, pB, pF), writer='imagemagick', dpi=240)
