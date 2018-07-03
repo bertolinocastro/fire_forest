@@ -34,13 +34,14 @@ def hasCloserFire(grid,pos):
 pB = 0.3
 
 # probability of ignite
-pF = 0.03
+# pF = 0.03
+pF = -1
 
 # grid dimension
 dim = 150
 
 # number of iterations
-nt = 20
+nt = 1000
 
 # number of threads to run
 nThreads = 4
@@ -97,6 +98,7 @@ with pymp.Parallel(nThreads) as p:
     z = 0
     # time iteration
     for it in range(nt):
+        grid[z][1][int((dim+2)/2)] = state.BURNING
         # spatial iteraions
         for x in p.xrange(1, 1+dim):
             for y in range(1, 1+dim):
@@ -123,10 +125,11 @@ with pymp.Parallel(nThreads) as p:
             images.append([img])
 
 # defining the fps value based on number of iterations (the gif must finish in 10 sec)
+# or limiting it down to 25ms
 # fps = nt/10
-interval = 10000/nt
+interval = max(10000/nt, 25)
 
-# creating the animation with all states recorded and saving them as a gif file
-an = anim.ArtistAnimation(fig, images, interval)
-an.save('drossel-schwabl_forest-fire-model_%d_%dx%d_pb%.2f_pf%.2f.gif' %
-    (nt, dim, dim, pB, pF), writer='imagemagick', dpi=240)
+# creating the animation with all states recorded and saving them as a mp4 file
+an = anim.ArtistAnimation(fig, images, interval=interval, repeat_delay=1000)
+an.save('drossel-schwabl_forest-fire-model_%d_%dx%d_pb%.2f_pf%.2f.mp4' %
+    (nt, dim, dim, pB, pF), writer='ffmpeg', dpi=240)
